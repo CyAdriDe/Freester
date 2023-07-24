@@ -1,16 +1,11 @@
 import pandas as pd
 import time
 import csv
-import qrcode
 import requests
 import os
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
 
 def create_list():
 	with open('tracks.csv', 'r') as f:
@@ -22,17 +17,6 @@ def create_list():
 	musica.pop() # Eliminem el títol de la columna
 	
 	return musica
-
-def create_qr(item):
-    qr = qrcode.QRCode(
-            version=1,
-            box_size=10,
-            border=5)
-    qr.add_data(item[3])
-    qr.make(fit=True)
-    titol = item[0].replace("/", "")
-    img = qr.make_image(fill='black', back_color='white')
-    img.save(f'tracks/{titol}_{item[1]}_{item[2]}.png')
 
 def get_token():
 	url = 'https://accounts.spotify.com/api/token'
@@ -77,7 +61,6 @@ def get_info(token, list_ids):
 		response = response.json()
 		print(response['external_urls']['spotify'])
 		info = [response['name'], response['artists'][0]['name'], response['album']['release_date'][0:4], response['external_urls']['spotify']]
-		create_qr(info)
 		with open('songs.csv', 'a', newline='') as file:
 			writer = csv.writer(file)
 			writer.writerow(info)
