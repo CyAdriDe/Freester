@@ -33,16 +33,23 @@ def get_token():
 	return response.json()['access_token']
 
 def get_playlist(token):
-	playlist_id = os.getenv('PLAYLIST_ID')
-	url = 'https://api.spotify.com/v1/playlists/'+playlist_id+'/tracks?fields=items%28track%28id%29%29'
-	headers = {
-	    'Authorization': 'Bearer ' + token
-	}
-	response = requests.get(url, headers=headers)
-	tracks = response.json()['items']
+	playlist_length = 748
+	offset = 0
+	limit = 50
 	list_ids = []
-	for i in tracks:
-		list_ids.append(i['track']['id'])
+	playlist_id = os.getenv('PLAYLIST_ID')
+	while playlist_length > offset:
+		url = 'https://api.spotify.com/v1/playlists/'+playlist_id+'/tracks?fields=items%28track%28id%29%29&limit='+str(limit)+'&offset='+str(offset)
+		headers = {
+		    'Authorization': 'Bearer ' + token
+		}
+		response = requests.get(url, headers=headers)
+		tracks = response.json()['items']
+		for i in tracks:
+			print(i['track']['id'])
+			list_ids.append(i['track']['id'])
+		offset += 50
+
 	return list_ids
 
 def get_info(token, list_ids):
@@ -59,7 +66,6 @@ def get_info(token, list_ids):
 		url = 'https://api.spotify.com/v1/tracks/'+ track_id
 		response = requests.get(url, headers=headers)
 		response = response.json()
-		print(response['external_urls']['spotify'])
 		info = [response['name'], response['artists'][0]['name'], response['album']['release_date'][0:4], response['external_urls']['spotify']]
 		with open('songs.csv', 'a', newline='') as file:
 			writer = csv.writer(file)
