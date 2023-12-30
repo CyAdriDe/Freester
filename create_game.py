@@ -1,8 +1,15 @@
 import pandas as pd
-import time
 import csv
 import qrcode
 import textwrap
+
+import datetime
+import requests
+import os
+from dotenv import load_dotenv
+import xml.etree.ElementTree as ET
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -10,6 +17,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spac
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+from create_list import update_songs
 
 def read_sheet():
 	SHEET_ID = '1f7o1pda1xsHnE7BnWxwDMog0XcjnGnL-WyJZ8W2eRks'
@@ -18,8 +26,8 @@ def read_sheet():
 	df = pd.read_csv(url)
 	df.to_csv('info_musica.csv', index=False, encoding='utf-8')
 
-def create_list():
-	with open('info_musica.csv', 'r') as f:
+def create_list(csv_name):
+	with open(csv_name, 'r') as f:
 		titol = []
 		artista = []
 		year = []
@@ -39,6 +47,22 @@ def create_list():
 
 	return titol, artista, year, link
 
+def compare_lists(link, titol_spoty, artista_spoty, year_spoty, link_spoty):
+	
+	diff_links = list(set(link) ^ set(link_spoty))
+
+	with open('new_songs.csv', 'w', newline='') as file:
+			writer = csv.writer(file)
+			fields = ['Titulo','Artista','Año','URL']
+			writer.writerow(fields)
+			file.close()
+	for i in range(len(titol_spoty)):
+		if link_spoty[i] in diff_links:
+			with open('new_songs.csv', 'a', newline='') as file:
+				writer = csv.writer(file)
+				fields = [titol_spoty[i],artista_spoty[i],year_spoty[i],link_spoty[i]]
+				writer.writerow(fields)
+				file.close()
 
 def create_qr(titol, artista, year, link):
 	if all(len(lst) == len(titol) for lst in [titol, artista, year, link]):
@@ -126,8 +150,11 @@ def create_pdf_info(titol, artista, year):
 
 
 if __name__ == '__main__':
+	update_songs()
 	read_sheet()
-	titol, artista, year, link = create_list()
-	create_qr(titol, artista, year, link)
-	create_pdf_qr(titol, artista, year)
-	create_pdf_info(titol, artista, year)
+	titol, artista, year, link = create_list('info_musica.csv')
+	titol_spoty, artista_spoty, year_spoty, link_spoty = create_list('songs_spoty.csv')
+	titol, artista, year, link = compare_lists(link, titol_spoty, artista_spoty, year_spoty, link_spoty)
+	#create_qr(titol, artista, year, link)
+	#create_pdf_qr(titol, artista, year)
+	#create_pdf_info(titol, artista, year)

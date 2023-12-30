@@ -1,22 +1,12 @@
 import pandas as pd
-import time
+import datetime
 import csv
 import requests
 import os
 from dotenv import load_dotenv
+import xml.etree.ElementTree as ET
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-
-def create_list():
-	with open('tracks.csv', 'r') as f:
-		musica = []
-		reader = csv.reader(f, delimiter = ",")
-		for row in reader:
-			musica.append(row)
-	musica = musica[::-1]
-	musica.pop() # Eliminem el títol de la columna
-	
-	return musica
 
 def get_token():
 	url = 'https://accounts.spotify.com/api/token'
@@ -33,7 +23,7 @@ def get_token():
 	return response.json()['access_token']
 
 def get_playlist(token):
-	playlist_length = 748
+	playlist_length = 750
 	offset = 0
 	limit = 50
 	list_ids = []
@@ -46,7 +36,7 @@ def get_playlist(token):
 		response = requests.get(url, headers=headers)
 		tracks = response.json()['items']
 		for i in tracks:
-			print(i['track']['id'])
+			#print(i['track']['id'])
 			list_ids.append(i['track']['id'])
 		offset += 50
 
@@ -57,7 +47,7 @@ def get_info(token, list_ids):
 	    'Authorization': 'Bearer ' + token
 	}
 	#Borrem l'arxiu anterior
-	with open('songs.csv', 'w', newline='') as file:
+	with open('songs_spoty.csv', 'w', newline='') as file:
 			writer = csv.writer(file)
 			fields = ['Titulo','Artista','Año','URL']
 			writer.writerow(fields)
@@ -66,15 +56,57 @@ def get_info(token, list_ids):
 		url = 'https://api.spotify.com/v1/tracks/'+ track_id
 		response = requests.get(url, headers=headers)
 		response = response.json()
-		info = [response['name'], response['artists'][0]['name'], response['album']['release_date'][0:4], response['external_urls']['spotify']]
-		with open('songs.csv', 'a', newline='') as file:
+		year_song = search_year_song(response['name'], response['artists'][0]['name'])
+		if year_song == None:
+			year_song = response['album']['release_date'][0:4]
+		elif int(year_song) > int(response['album']['release_date'][0:4]):
+			year_song = response['album']['release_date'][0:4]
+		info = [response['name'], response['artists'][0]['name'], str(year_song), response['external_urls']['spotify']]
+		print(info)
+		with open('songs_spoty.csv', 'a', newline='') as file:
 			writer = csv.writer(file)
 			writer.writerow(info)
+			print("---")
 			file.close()
 
+def search_year_song(titulo, artista):
+	# Formato de la URL para la búsqueda (en este caso, en formato XML)
+	print("Searching for " + titulo + " by " + artista)
+	url = f"https://musicbrainz.org/ws/2/release?query=recording:{titulo} AND artist:{artista}&fmt=json"
 
-if __name__ == '__main__':
+	respuesta = requests.get(url)
+	if respuesta.status_code != 200:
+		print("Code error in response")
+		return None
+
+	# Analizar la respuesta
+	data = respuesta.json()
+	oldest_date = datetime.date.today().year + 1
+	try:
+		for recording in data['releases']:
+			if 'title' in recording and recording['title'].strip().lower() == titulo.strip().lower():
+				last_date = recording['date'][0:4]
+				if last_date == '':
+					continue
+				last_date = int(last_date)
+				if oldest_date > last_date:
+					oldest_date = last_date
+			else:
+				print("Comparation failed!!!")
+				break
+	except:
+		print("Problem, passing...")
+
+	if oldest_date >= datetime.date.today().year:
+		return None
+	else:
+		return oldest_date
+
+
+def update_songs():
 	load_dotenv()
 	token = get_token()
 	list_ids = get_playlist(token)
 	get_info(token, list_ids)
+
+update_songs()
