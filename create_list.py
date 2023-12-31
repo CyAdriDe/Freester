@@ -108,5 +108,3 @@ def update_songs():
 	token = get_token()
 	list_ids = get_playlist(token)
 	get_info(token, list_ids)
-
-update_songs()
